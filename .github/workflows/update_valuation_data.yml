@@ -1,0 +1,58 @@
+name: Update Valuation Data
+
+on:
+  schedule:
+    # 5:30 AM IST = 00:00 UTC  |  runs every day
+    - cron: "30 0 * * *"
+  workflow_dispatch:          # allow manual trigger from the Actions tab
+
+permissions:
+  contents: write             # needed to push the updated parquet
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90       # full scrape of ~100 indices can take a while
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # ── 2. Python ────────────────────────────────────────────
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      # ── 3. Dependencies ──────────────────────────────────────
+      - name: Install dependencies
+        run: pip install requests pandas openpyxl pyarrow urllib3
+
+      # ── 4. Scrape & merge ────────────────────────────────────
+      - name: Run incremental update
+        run: python update_valuation.py
+        env:
+          PYTHONUNBUFFERED: "1"   # so logs stream in real-time
+
+      # ── 5. Commit & push ─────────────────────────────────────
+      - name: Commit updated parquet
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add data/valuation_data.parquet valuation_data.parquet
+
+          if git diff --cached --quiet; then
+            echo "No new data — nothing to commit."
+          else
+            TODAY=$(date -u '+%Y-%m-%d')
+            git commit -m "chore: valuation data update ${TODAY} [skip ci]"
+            git stash                        # park the log/csv/checkpoint files
+            git pull --rebase origin main
+            git stash drop || true           # discard them — we don't need them in the repo
+            git push
+          fi
