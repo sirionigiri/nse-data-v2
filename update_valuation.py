@@ -1,7 +1,7 @@
 """
 update_valuation.py
 ====================
-Incremental updater for valuation_data.parquet.
+Incremental updater for nifty_all_indices_valuation.parquet.
 
 Logic
 -----
@@ -9,8 +9,8 @@ Logic
 2. Fetch P/E, P/B, Div-Yield from NiftyIndices API for dates AFTER that.
 3. Merge new rows with existing data (deduplicate on Date + Index_Name).
 4. Write back to BOTH canonical locations:
-     • data/valuation_data.parquet   (the "source of truth" in /data/)
-     • valuation_data.parquet        (repo-root copy, kept for compatibility)
+     • data/nifty_all_indices_valuation.parquet   (the "source of truth" in /data/)
+     • nifty_all_indices_valuation.parquet        (repo-root copy, kept for compatibility)
 
 Run locally:  python update_valuation.py
 """
@@ -38,8 +38,7 @@ urllib3.disable_warnings()
 # ─────────────────────────────────────────────────────────────
 REPO_ROOT       = Path(__file__).parent
 DATA_DIR        = REPO_ROOT / "data"
-PARQUET_DATA    = DATA_DIR / "valuation_data.parquet"      # canonical
-PARQUET_ROOT    = REPO_ROOT / "valuation_data.parquet"     # root-level copy
+PARQUET_DATA    = DATA_DIR / "nifty_all_indices_valuation.parquet"      # canonical
 LOG_FILE        = REPO_ROOT / "nifty_pepb.log"
 NOT_FOUND_FILE  = REPO_ROOT / "nifty_pepb_not_found.txt"
 
@@ -149,8 +148,8 @@ def fmt(dt: datetime) -> str:
 
 
 def load_existing_parquet() -> pd.DataFrame:
-    """Load from data/valuation_data.parquet; fall back to root copy."""
-    for path in (PARQUET_DATA, PARQUET_ROOT):
+    """Load from data/nifty_all_indices_valuation.parquet; fall back to root copy."""
+    for path in (PARQUET_DATA):
         if path.exists():
             log.info("Loading existing data from '%s' …", path)
             df = pd.read_parquet(path)
@@ -352,11 +351,9 @@ def main():
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
     combined.to_parquet(PARQUET_DATA, index=False)
-    combined.to_parquet(PARQUET_ROOT, index=False)
 
     log.info("=" * 65)
     log.info("SAVED  %d total rows → %s", len(combined), PARQUET_DATA)
-    log.info("       %d total rows → %s", len(combined), PARQUET_ROOT)
     log.info("Indices  : %d", combined["Index_Name"].nunique())
     log.info("Date span: %s → %s",
              combined["Date"].min().strftime("%d %b %Y"),

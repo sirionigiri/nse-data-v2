@@ -1,15 +1,14 @@
 """
 update_nifty_data.py
 =====================
-Incremental updater for nifty_data.parquet (Total Returns Index).
+Incremental updater for nifty_all_indices_tri.parquet (Total Returns Index).
 
 Logic
 -----
-1. Read existing data/nifty_data.parquet to find the last date per index.
+1. Read existing data/nifty_all_indices_tri.parquet to find the last date per index.
 2. Fetch TRI from NiftyIndices API only for dates AFTER that cutoff.
 3. Merge, deduplicate on (Date, Index_Name), write back to both locations:
-     • data/nifty_data.parquet   (canonical)
-     • nifty_data.parquet        (repo-root copy, kept for compatibility)
+     • data/nifty_all_indices_tri.parquet   (canonical)
 
 Run locally:  python update_nifty_data.py
 """
@@ -37,8 +36,7 @@ urllib3.disable_warnings()
 # ─────────────────────────────────────────────────────────────
 REPO_ROOT    = Path(__file__).parent
 DATA_DIR     = REPO_ROOT / "data"
-PARQUET_DATA = DATA_DIR / "nifty_data.parquet"      # canonical
-PARQUET_ROOT = REPO_ROOT / "nifty_data.parquet"     # root-level copy
+PARQUET_DATA = DATA_DIR / "nifty_all_indices_tri.parquet"      # canonical
 LOG_FILE     = REPO_ROOT / "nifty_api.log"
 NOT_FOUND_FILE = REPO_ROOT / "nifty_tri_not_found.txt"
 
@@ -150,7 +148,7 @@ def fmt(dt: datetime) -> str:
 
 
 def load_existing_parquet() -> pd.DataFrame:
-    for path in (PARQUET_DATA, PARQUET_ROOT):
+    for path in (PARQUET_DATA):
         if path.exists():
             log.info("Loading existing data from '%s' …", path)
             df = pd.read_parquet(path)
@@ -330,11 +328,9 @@ def main():
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     combined.to_parquet(PARQUET_DATA, index=False)
-    combined.to_parquet(PARQUET_ROOT, index=False)
 
     log.info("=" * 65)
     log.info("SAVED  %d total rows → %s", len(combined), PARQUET_DATA)
-    log.info("       %d total rows → %s", len(combined), PARQUET_ROOT)
     log.info("Indices  : %d", combined["Index_Name"].nunique())
     log.info("Date span: %s → %s",
              combined["Date"].min().strftime("%d %b %Y"),
