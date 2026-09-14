@@ -148,15 +148,14 @@ def fmt(dt: datetime) -> str:
 
 
 def load_existing_parquet() -> pd.DataFrame:
-    for path in (PARQUET_DATA):
-        if path.exists():
-            log.info("Loading existing data from '%s' …", path)
-            df = pd.read_parquet(path)
-            df["Date"] = pd.to_datetime(df["Date"])
-            log.info("  → %d rows, %d unique indices, up to %s",
-                     len(df), df["Index_Name"].nunique(),
-                     df["Date"].max().strftime("%d %b %Y"))
-            return df
+    if PARQUET_DATA.exists():
+        log.info("Loading existing data from '%s' …", PARQUET_DATA)
+        df = pd.read_parquet(PARQUET_DATA)
+        df["Date"] = pd.to_datetime(df["Date"])
+        log.info("  → %d rows, %d unique indices, up to %s",
+                    len(df), df["Index_Name"].nunique(),
+                    df["Date"].max().strftime("%d %b %Y"))
+        return df
     log.warning("No existing parquet found — will do a full historical fetch.")
     return pd.DataFrame()
 
