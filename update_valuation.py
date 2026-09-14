@@ -228,13 +228,19 @@ def fetch_pepb(
                 verify=False,
             )
             resp.raise_for_status()
-
             outer = resp.json()
-            if "d" not in outer:
+
+            # Endpoint may return either a raw JSON array, or an object with a "d" key
+            # (older ASP.NET PageMethods style) wrapping a JSON *string* that itself
+            # needs a second parse.
+            if isinstance(outer, list):
+                records = outer
+            elif isinstance(outer, dict) and "d" in outer:
+                records = json.loads(outer["d"]) if isinstance(outer["d"], str) else outer["d"]
+            else:
                 log.warning("  Unexpected structure for '%s': %s", name_val, str(outer)[:120])
                 continue
 
-            records = json.loads(outer["d"])
             if not records:
                 log.debug("  Empty for name='%s'.", name_val)
                 continue
